@@ -1,10 +1,10 @@
 package Common
 
 import (
-	"github.com/tophubs/TopList/Config"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/tophubs/TopList/Config"
 	"log"
 	"math"
 	"strconv"
@@ -77,7 +77,8 @@ func (MySql *MySql) Close() error {
 	return nil
 }
 
-/**
+/*
+*
 查询方法
 */
 func (MySql *MySql) Select(tableName string, field []string) *MySql {
@@ -88,7 +89,8 @@ func (MySql *MySql) Select(tableName string, field []string) *MySql {
 	return MySql
 }
 
-/**
+/*
+*
 where子句
 */
 func (MySql *MySql) Where(cond map[string]string) *MySql {
@@ -124,7 +126,8 @@ func (MySql *MySql) OrderByString(orderString ...string) *MySql {
 	return MySql
 }
 
-/**
+/*
+*
 更新方法
 */
 func (MySql MySql) Update(tableName string, str map[string]string) int64 {
@@ -146,7 +149,8 @@ func (MySql MySql) Update(tableName string, str map[string]string) int64 {
 
 }
 
-/**
+/*
+*
 删除方法
 */
 func (MySql MySql) Delete(tableName string) int64 {
@@ -161,7 +165,8 @@ func (MySql MySql) Delete(tableName string) int64 {
 	return rows
 }
 
-/**
+/*
+*
 插入方法
 */
 func (MySql MySql) Insert(tableName string, data map[string]string) int64 {
@@ -192,7 +197,8 @@ func (MySql MySql) Insert(tableName string, data map[string]string) int64 {
 	return id
 }
 
-/**
+/*
+*
 分页查询
 */
 func (MySql MySql) Pagination(Page int, Limit int) map[string]interface{} {
@@ -303,7 +309,8 @@ func (MySql MySql) ExecSql(queryStr string) []map[string]string {
 	return allRows
 }
 
-/**
+/*
+*
 查询单行
 */
 func (MySql MySql) QueryRow() map[string]string {
@@ -334,7 +341,8 @@ func (MySql MySql) QueryRow() map[string]string {
 
 }
 
-/**
+/*
+*
 检查错误
 */
 func (MySql MySql) checkErr(err error) {

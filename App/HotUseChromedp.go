@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sort"
 	"strconv"
@@ -125,5 +126,130 @@ func (spider Spider) GetWeiBo() []map[string]interface{} {
 		}
 	}
 
+	return allData
+}
+
+// GetDouBan 豆瓣， 需要chromedp抓取，单独定制，
+func (spider Spider) GetDouBan() []map[string]interface{} {
+	urlDouban := "https://www.douban.com/group/explore"
+
+	// create context
+	ctx, cancelChrome := chromedp.NewContext(context.Background())
+	defer cancelChrome()
+
+	// force max timeout of 15 seconds for retrieving and processing the data
+	var cancel func()
+	ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 等待topics div加载
+	sel := "//*[@id=\"content\"]/div/div[1]/div[1]"
+	// navigate
+	if err := chromedp.Run(ctx, chromedp.Navigate(urlDouban)); err != nil {
+		log.Printf("could not navigate to weibo: %v\n", err)
+		return []map[string]interface{}{}
+	}
+
+	// wait visible
+	if err := chromedp.Run(ctx, chromedp.WaitVisible(sel), chromedp.Sleep(1*time.Second)); err != nil {
+		log.Printf("could not get section: %v sel:%s\n", err, sel)
+		return []map[string]interface{}{}
+	}
+
+	// 通过following-sibling函数我们可以提取指定元素目录tbody下的指定元素tr/td的所有同级元素，即获取目标元素的所有兄弟节点。
+	// 同级下的ul/li节点.
+	sib := sel + `//following-sibling::div/h3`
+
+	// get h3 links and description text
+	// node()匹配任意节点.
+	var linksAndDescriptions []*cdp.Node
+	if err := chromedp.Run(ctx, chromedp.Nodes(sib+`/a`, &linksAndDescriptions)); err != nil {
+		log.Printf("could not get links and descriptions: %v\n", err)
+		return []map[string]interface{}{}
+	}
+
+	// process data, add all into one struct.
+	// output the values to all data
+	var allData []map[string]interface{}
+	for i := 0; i < len(linksAndDescriptions); i++ {
+		url := linksAndDescriptions[i].AttributeValue("href")
+		if len(url) == 0 {
+			continue
+		}
+		// 直接从节点的子节点中获取文本内容
+		var textContent string
+		for _, child := range linksAndDescriptions[i].Children {
+			textContent += child.NodeValue
+		}
+		fmt.Printf("Title: %s, Url: %s\n", textContent, url)
+		// log.Printf("project %s (%s): '%s'", v, res[v].URL, res[v].text)
+		allData = append(allData, map[string]interface{}{"title": textContent, "url": url})
+	}
+	return allData
+}
+
+// GetHuPu 虎扑: 使用chromedp
+func (spider Spider) GetHuPu() []map[string]interface{} {
+	baseUrl := "https://bbs.hupu.com/"
+	urlHupu := baseUrl + "all-gambia"
+
+	// create context
+	ctx, cancelChrome := chromedp.NewContext(context.Background())
+	defer cancelChrome()
+
+	// force max timeout of 15 seconds for retrieving and processing the data
+	var cancel func()
+	ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 等待topics div加载
+	sel := "div.text-list-model  .t-info"
+	// navigate
+	if err := chromedp.Run(ctx, chromedp.Navigate(urlHupu)); err != nil {
+		log.Printf("could not navigate to weibo: %v\n", err)
+		return []map[string]interface{}{}
+	}
+
+	// wait visible
+	if err := chromedp.Run(ctx, chromedp.WaitVisible(sel), chromedp.Sleep(1*time.Second)); err != nil {
+		log.Printf("could not get section: %v sel:%s\n", err, sel)
+		return []map[string]interface{}{}
+	}
+
+	var linksAndDescriptions []*cdp.Node
+	if err := chromedp.Run(ctx, chromedp.Nodes(sel+` a`, &linksAndDescriptions)); err != nil {
+		log.Printf("could not get links and descriptions: %v\n", err)
+		return []map[string]interface{}{}
+	}
+
+	var spanText []*cdp.Node
+	if err := chromedp.Run(ctx, chromedp.Nodes(sel+` a>span`, &spanText)); err != nil {
+		log.Printf("could not get span text: %v\n", err)
+		return []map[string]interface{}{}
+	}
+
+	// output the values to all data
+	var allData []map[string]interface{}
+	for i := 0; i < len(linksAndDescriptions); i++ {
+		url := linksAndDescriptions[i].AttributeValue("href")
+		if len(url) == 0 || i >= len(spanText) {
+			continue
+		}
+
+		// 直接从节点的子节点中获取文本内容
+		// 这里不知道为啥span没有当做a的节点.无法直接取bug?
+		//var textContent string
+		//for _, child := range linksAndDescriptions[i].Children {
+		//	fmt.Println("================")
+		//	textContent += child.NodeValue
+		//}
+		// textContent := spanText[i].NodeValue
+		var textContent string
+		for _, child := range spanText[i].Children {
+			textContent += child.NodeValue
+		}
+
+		allData = append(allData, map[string]interface{}{"title": textContent, "url": baseUrl + url})
+	}
 	return allData
 }

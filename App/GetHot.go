@@ -14,7 +14,9 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -116,6 +118,7 @@ func (spider Spider) GetITHome() []map[string]interface{} {
 }
 
 // GetZhiHu 知乎:知乎是需要登录的, 每次需要单独cookie.
+// 无法直接用cookie获取爬取，goquery不支持.
 func (spider Spider) GetZhiHu() []map[string]interface{} {
 	timeout := time.Duration(5 * time.Second) //超时时间5s
 	client := &http.Client{
@@ -130,7 +133,7 @@ func (spider Spider) GetZhiHu() []map[string]interface{} {
 	}
 
 	// 设置登录cookie即可.
-	request.Header.Add("Cookie", `_9755xjdesxxd_=32; _zap=dda53e17-1735-4484-92ef-615d6a2f6d4f; _xsrf=VxlKKV2n3wnGZN61TZg1VonI9pjA7kxr; d_c0=ABDaXipSihiPTsemKgU2KKePE-FbLQOSJwo=|1714379422; q_c1=0e5b8e45b9fb4510a3e545c52f8e8e51|1716973986000|1648615377000; z_c0=2|1:0|10:1729681488|4:z_c0|80:MS4xN05FQkJnQUFBQUFtQUFBQVlBSlZUY2J3OFdjRnREWFprV3dBdDAwSEgxbkw0SDEzLTdzaml3PT0=|9ed8db772357c4dc429119916b05cbcb6c6d4afd809d848ce27ed3b8c0a4e09c; Hm_lvt_98beee57fd2ef70ccdd5ca52b9740c49=1728357049,1729483043,1730248319; HMACCOUNT=2E7A3AC10D710648; __zse_ck=003_bZJen2g9eZH0BF2t7KCNLY6J0tbLG/kE7cWFHU4=Zp4Nv6PbSTgehJ2mo8i+qj/Hi1LQT3Rd8+=VyDZWt1gPZKKULUgpdgI=E6MLzO55j17Y; _ga=GA1.2.513319920.1730270985; _gid=GA1.2.1337799469.1730270985; tst=h; SESSIONID=tURUQZMbjzVyfbGZmFGcoPSo7lEfirsDqx1gY5oiJWu; JOID=VVkUAUqDYutgZcbaO4aCMOzB5t0u8Te6NjKal1rvHr0aAKKbYZy2ygJlwNk7EtE_V5YKjvsxm-JiV5tHSNdYPqE=; osd=UlgWAU-EY-lgYMHbOYaHN-3D5tgp8DW6MzWblVrqGbwYAKecYJ62zwVkwtk-FdA9V5MNj_kxnuVjVZtCT9ZaPqQ=; _ga_MKN1TB7ZML=GS1.2.1730270986.1.1.1730271130.0.0.0; BEC=244e292b1eefcef20c9b81b1d9777823; Hm_lpvt_98beee57fd2ef70ccdd5ca52b9740c49=1730282270`)
+	request.Header.Add("Cookie", `_9755xjdesxxd_=32; _zap=dda53e17-1735-4484-92ef-615d6a2f6d4f; _xsrf=VxlKKV2n3wnGZN61TZg1VonI9pjA7kxr; d_c0=ABDaXipSihiPTsemKgU2KKePE-FbLQOSJwo=|1714379422; q_c1=0e5b8e45b9fb4510a3e545c52f8e8e51|1716973986000|1648615377000; _ga=GA1.2.513319920.1730270985; _ga_MKN1TB7ZML=GS1.2.1730270986.1.1.1730271130.0.0.0; __zse_ck=004_fycGi7SRFe2SN80i/T3AsTOeK8SeSpEGzwf1pH/aAZ7CuSe14Sl/ukCGNkF/4bXNeJGW=3KxxdVmrjECUvQulp88q0vQpMcrh687rYD3v77YcVBRpbeQRh4x8C52qdty-b0Im4GmxVdNaf6Ar6/09o7MMxwI1KbOzXqarkRDcObywzwGw4GbSz/76M+QN6q5AtxngcUJdnRBPPtoziiKwC1CAFMo2dkiAltjW339IchmD3TjQfAj8k4dysFkNr/jK; z_c0=2|1:0|10:1734934887|4:z_c0|80:MS4xN05FQkJnQUFBQUFtQUFBQVlBSlZUV1pQVm1pUjAtVHhOa2ota1kxUjNJanVrY2dOdkh5eHRBPT0=|9cbe3cc7c9aacbda5f54f94c0fe56b760d00b9e70757d461f6b69f7f5a93898b; Hm_lvt_98beee57fd2ef70ccdd5ca52b9740c49=1732515576,1733185966,1734934887; HMACCOUNT=2E7A3AC10D710648; tst=h; SESSIONID=wkd6kIiXkW9KmaJwmR1iMboP84ioLxa4yILC9cXMfmI; JOID=UlAdAEjXiXP83tT6P9Ripnhx8vYkqOIcyraVk2y_1kq8s7a4SHSPEZjV3PE034G1rf1aGe3q-RUSKU9QvqR7Bhw=; osd=VF8QAE3Rhn7829L1MtRnoHd88vMip-8cz7Canmy60EWxs7O-R3mPFJ7a0fEx2Y64rfhcFuDq_BMdJE9VuKt2Bhk=; BEC=ec64a27f4feb1b29e8161db426d61998; Hm_lpvt_98beee57fd2ef70ccdd5ca52b9740c49=1734938115`)
 	request.Header.Add("User-Agent", `Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Mobile Safari/537.36`)
 
 	res, err := client.Do(request)
@@ -147,20 +150,56 @@ func (spider Spider) GetZhiHu() []map[string]interface{} {
 	}
 
 	// println(document.Text())
-	// 知乎没法直接爬取，返回的的是一堆json数据没法解析
+	// 知乎没法直接爬取，返回的的是一堆json数据没法解析，直接正则查找字符串.
 	document.Contents().Each(func(i int, selection *goquery.Selection) {
-		url, boolUrl := selection.Find("a").Attr("href")
-		text := selection.Find("h2").Text()
-		println("GetZhiHu find text=========================================:\n")
 		if selection.Children() != nil {
-			println("GetZhiHu find Children text=========================================:\n")
-			selection.Children().Each(func(i int, selection *goquery.Selection) { println(selection.Text()) })
-		}
+			// json文本内容在这里打印
+			selection.Children().Each(func(i int, selection *goquery.Selection) {
+				findedStr := selection.Text()
+				// 正则表达式查找 "hotList" 开头的子字符串
+				re := regexp.MustCompile(`"hotList":\s*(\[[^]]*\])`)
+				// re := regexp.MustCompile(`\{"hotList":\[(.*?)\]}`)
+				matches := re.FindStringSubmatch(findedStr)
+				if len(matches) > 1 {
+					// fmt.Println("Found hotList 1:", matches[1])
 
-		if boolUrl {
-			allData = append(allData, map[string]interface{}{"title": text, "url": url})
+					// 使用正则表达式查找 excerptArea 中的 text 和 link 中的 url
+					titlePattern := regexp.MustCompile(`"titleArea":\{"text":"(.*?)"\}`)
+					linkPattern := regexp.MustCompile(`"link":\{"url":"(.*?)"\}`)
+
+					// 查找所有的 excerpt 和 link
+					titles := titlePattern.FindAllStringSubmatch(matches[1], -1)
+					links := linkPattern.FindAllStringSubmatch(matches[1], -1)
+
+					// 输出结果
+					for i := 0; i < len(titles); i++ {
+						// 如果截断了就跳过
+						if i < len(links) {
+							cleanedString := strings.ReplaceAll(links[i][1], "\\u002F", "/")
+							fmt.Printf("Link: %s\n", cleanedString)
+							fmt.Printf("Title: %s, Url: %s\n", titles[i][1], cleanedString)
+							allData = append(allData, map[string]interface{}{"title": titles[i][1], "url": cleanedString})
+						}
+					}
+				}
+			})
 		}
+		println("GetZhiHu find text end============================:\n")
 	})
+	//document.Contents().Each(func(i int, selection *goquery.Selection) {
+	//	url, boolUrl := selection.Find("a").Attr("href")
+	//	text := selection.Find("h2").Text()
+	//	println("GetZhiHu find text========================[" + url + "]=================:\n")
+	//	if selection.Children() != nil {
+	//		println("GetZhiHu find Children text=========================================:\n")
+	//		selection.Children().Each(func(i int, selection *goquery.Selection) { println(selection.Text()) })
+	//	}
+	//	println("GetZhiHu find text end============================:\n")
+	//
+	//	if boolUrl {
+	//		allData = append(allData, map[string]interface{}{"title": text, "url": url})
+	//	}
+	//})
 	return allData
 }
 
@@ -187,134 +226,6 @@ func (spider Spider) GetTieBa() []map[string]interface{} {
 	}
 	return allData
 
-}
-
-// 豆瓣
-func (spider Spider) GetDouBan() []map[string]interface{} {
-	url := "https://www.douban.com/group/explore"
-	timeout := time.Duration(5 * time.Second) //超时时间5s
-	client := &http.Client{
-		Timeout: timeout,
-	}
-	var Body io.Reader
-	request, err := http.NewRequest("GET", url, Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	request.Header.Add("User-Agent", `Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Mobile Safari/537.36`)
-	request.Header.Add("Upgrade-Insecure-Requests", `1`)
-	request.Header.Add("Referer", `https://www.douban.com/group/explore`)
-	request.Header.Add("Host", `www.douban.com`)
-	res, err := client.Do(request)
-
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	defer res.Body.Close()
-	//str,_ := ioutil.ReadAll(res.Body)
-	//fmt.Println(string(str))
-	var allData []map[string]interface{}
-	document, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	document.Find(".channel-item").Each(func(i int, selection *goquery.Selection) {
-		url, boolUrl := selection.Find("h3 a").Attr("href")
-		text := selection.Find("h3 a").Text()
-		if boolUrl {
-			allData = append(allData, map[string]interface{}{"title": text, "url": url})
-		}
-	})
-	return allData
-}
-
-// 天涯
-func (spider Spider) GetTianYa() []map[string]interface{} {
-	url := "http://bbs.tianya.cn/list.jsp?item=funinfo&grade=3&order=1"
-	timeout := time.Duration(5 * time.Second) //超时时间5s
-	client := &http.Client{
-		Timeout: timeout,
-	}
-	var Body io.Reader
-	request, err := http.NewRequest("GET", url, Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	request.Header.Add("User-Agent", `Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Mobile Safari/537.36`)
-	request.Header.Add("Upgrade-Insecure-Requests", `1`)
-	request.Header.Add("Referer", `http://bbs.tianya.cn/list.jsp?item=funinfo&grade=3&order=1`)
-	request.Header.Add("Host", `bbs.tianya.cn`)
-	res, err := client.Do(request)
-
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	defer res.Body.Close()
-	//str,_ := ioutil.ReadAll(res.Body)
-	//fmt.Println(string(str))
-	var allData []map[string]interface{}
-	document, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	document.Find("table tr").Each(func(i int, selection *goquery.Selection) {
-		s := selection.Find("td a").First()
-		url, boolUrl := s.Attr("href")
-		text := s.Text()
-		if boolUrl {
-			allData = append(allData, map[string]interface{}{"title": text, "url": "http://bbs.tianya.cn/" + url})
-		}
-	})
-	return allData
-}
-
-// 虎扑
-func (spider Spider) GetHuPu() []map[string]interface{} {
-	url := "https://bbs.hupu.com/all-gambia"
-	timeout := time.Duration(5 * time.Second) //超时时间5s
-	client := &http.Client{
-		Timeout: timeout,
-	}
-	var Body io.Reader
-	request, err := http.NewRequest("GET", url, Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	request.Header.Add("User-Agent", `Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Mobile Safari/537.36`)
-	request.Header.Add("Upgrade-Insecure-Requests", `1`)
-	request.Header.Add("Referer", `https://bbs.hupu.com/`)
-	request.Header.Add("Host", `bbs.hupu.com`)
-	res, err := client.Do(request)
-
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	defer res.Body.Close()
-	//str,_ := ioutil.ReadAll(res.Body)
-	//fmt.Println(string(str))
-	var allData []map[string]interface{}
-	document, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	document.Find(".bbsHotPit li").Each(func(i int, selection *goquery.Selection) {
-		s := selection.Find(".textSpan a")
-		url, boolUrl := s.Attr("href")
-		text := s.Text()
-		if boolUrl {
-			allData = append(allData, map[string]interface{}{"title": text, "url": "https://bbs.hupu.com/" + url})
-		}
-	})
-	return allData
 }
 
 // Github
@@ -362,7 +273,7 @@ func (spider Spider) GetGitHub() []map[string]interface{} {
 }
 
 func (spider Spider) GetBaiDu() []map[string]interface{} {
-	url := "http://top.baidu.com/buzz?b=341&c=513&fr=topbuzz_b1"
+	url := "https://top.baidu.com/board?tab=realtime"
 	timeout := time.Duration(5 * time.Second) //超时时间5s
 	client := &http.Client{
 		Timeout: timeout,
@@ -1355,13 +1266,16 @@ var group sync.WaitGroup
 
 func main() {
 	allData := []string{
-		// 没法直接用goquery爬取，用chromedp方式显得太复杂.
 		"ZhiHu",
-		"WeiBo",
+		"WeiBo", // chromedp实现
 		"TieBa",
-		"DouBan",
-		"TianYa",
-		"HuPu",
+		"DouBan", // chromedp实现.
+		"HuPu",   // chromedp实现.
+
+		// 没法直接用goquery爬取，用chromedp方式显得太复杂.
+		// 检查到这.
+		// sql中执行delete from hotData2 where dataType='TianYa'
+		// "TianYa",
 
 		"BaiDu",
 		"36Kr",
@@ -1396,7 +1310,7 @@ func main() {
 		spider = Spider{DataType: value}
 		// go ExecGetData(spider)
 		ExecGetData(spider)
-		break
+		// break
 	}
 	group.Wait()
 	fmt.Print("完成抓取")
