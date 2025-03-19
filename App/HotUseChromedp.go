@@ -253,3 +253,60 @@ func (spider Spider) GetHuPu() []map[string]interface{} {
 	}
 	return allData
 }
+
+func (spider Spider) GetBaiDu() []map[string]interface{} {
+	urlBaidu := "https://top.baidu.com/board?tab=realtime"
+
+	// create context
+	ctx, cancelChrome := chromedp.NewContext(context.Background())
+	defer cancelChrome()
+
+	// force max timeout of 15 seconds for retrieving and processing the data
+	var cancel func()
+	ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 等待content_1YWBm加载,following-sibling函数和text()都只支持XPath
+	sel := "//*[@id=\"sanRoot\"]/main/div[2]/div/div[2]/div/div[2]"
+	// navigate
+	if err := chromedp.Run(ctx, chromedp.Navigate(urlBaidu)); err != nil {
+		log.Printf("could not navigate to weibo: %v\n", err)
+		return []map[string]interface{}{}
+	}
+
+	// wait visible
+	if err := chromedp.Run(ctx, chromedp.WaitVisible(sel), chromedp.Sleep(1*time.Second)); err != nil {
+		log.Printf("could not get section: %v sel:%s\n", err, sel)
+		return []map[string]interface{}{}
+	}
+
+	var linksAndDescriptions []*cdp.Node
+	if err := chromedp.Run(ctx, chromedp.Nodes(sel+`/a`, &linksAndDescriptions)); err != nil {
+		log.Printf("could not get links and descriptions: %v\n", err)
+		return []map[string]interface{}{}
+	}
+
+	// TODO: 为啥无法运行[1]/text()找到对应text？.
+	// 结合/following-sibling::tr/td使用
+	// /child::a/text()
+	// ByQuery系列方法： all方法不支持XPath
+	var divText []string
+	if err := chromedp.Run(ctx, chromedp.Evaluate(`Array.from(document.querySelectorAll('div.container.right-container_2EFJr .content_1YWBm a .c-single-text-ellipsis')).map(el => el.textContent);`, &divText)); err != nil {
+		log.Printf("could not get div text: %v\n", err)
+
+		return []map[string]interface{}{}
+	}
+
+	// output the values to all data
+	var allData []map[string]interface{}
+	for i := 0; i < len(linksAndDescriptions); i++ {
+		url := linksAndDescriptions[i].AttributeValue("href")
+		if len(url) == 0 || i >= len(divText) {
+			continue
+		}
+		//fmt.Println(divText[i])
+		//fmt.Printf("Title: %s, Url: %s\n", divText[i], url)
+		allData = append(allData, map[string]interface{}{"title": divText[i], "url": url})
+	}
+	return allData
+}

@@ -242,8 +242,18 @@ func (spider Spider) GetBaiDu() []map[string]interface{} {
 	}
 
 	// TODO: 为啥无法运行[1]/text()找到对应text？.
-	var divText []*cdp.Node
-	if err := chromedp.Run(ctx, chromedp.Nodes(`//*[@id="sanRoot"]/main/div[2]/div/div[2]/div/div[2]/a/div[1]/text()`, &divText)); err != nil {
+	// 结合/following-sibling::tr/td使用
+	// /child::a/text()
+	// ByQuery系列方法： all方法不支持XPath
+	// //*[@id="sanRoot"]/main/div[2]/div/div[2]/div/div[2]/a/div[1]/text()
+	// div.container.right-container_2EFJr .content_1YWBm a .c-single-text-ellipsis
+	var divText []string
+	//if err := chromedp.Run(ctx, chromedp.Nodes(`div.container.right-container_2EFJr .content_1YWBm a .c-single-text-ellipsis`, &divText, chromedp.ByQueryAll)); err != nil {
+	//	log.Printf("could not get div text: %v\n", err)
+	//
+	//	return []map[string]interface{}{}
+	//}
+	if err := chromedp.Run(ctx, chromedp.Evaluate(`Array.from(document.querySelectorAll('div.container.right-container_2EFJr .content_1YWBm a .c-single-text-ellipsis')).map(el => el.textContent);`, &divText)); err != nil {
 		log.Printf("could not get div text: %v\n", err)
 
 		return []map[string]interface{}{}
@@ -256,16 +266,74 @@ func (spider Spider) GetBaiDu() []map[string]interface{} {
 		if len(url) == 0 || i >= len(divText) {
 			continue
 		}
-
-		fmt.Printf("Title: %s, Url: %s\n", divText[i].NodeValue, url)
-		allData = append(allData, map[string]interface{}{"title": divText[i].NodeValue, "url": url})
+		fmt.Println(divText[i])
+		fmt.Printf("Title: %s, Url: %s\n", divText[i], url)
+		allData = append(allData, map[string]interface{}{"title": divText[i], "url": url})
 	}
+	return allData
+}
+
+// GetHuXiu TODO: 调试这里,使用json解析.
+func (spider Spider) GetHuXiu() []map[string]interface{} {
+	url := "https://www.huxiu.com/article"
+	timeout := time.Duration(5 * time.Second) //超时时间5s
+	client := &http.Client{
+		Timeout: timeout,
+	}
+	var Body io.Reader
+	request, err := http.NewRequest("GET", url, Body)
+	if err != nil {
+		fmt.Println("抓取" + spider.DataType + "失败")
+		return []map[string]interface{}{}
+	}
+	request.Header.Add("User-Agent", `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36`)
+	request.Header.Add("Upgrade-Insecure-Requests", `1`)
+	request.Header.Add("Host", `www.guokr.com`)
+	request.Header.Add("Referer", `https://www.huxiu.com/channel/107.html`)
+	res, err := client.Do(request)
+
+	if err != nil {
+		fmt.Println("抓取" + spider.DataType + "失败")
+		return []map[string]interface{}{}
+	}
+	defer res.Body.Close()
+	//str,_ := ioutil.ReadAll(res.Body)
+	//fmt.Println(string(str))
+	var allData []map[string]interface{}
+	document, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		fmt.Println("抓取" + spider.DataType + "失败")
+		return []map[string]interface{}{}
+	}
+
+	// json格式，参考GetZhiHu
+	fmt.Println(document.Text())
+	document.Find(".article-item--large__content").Each(func(i int, selection *goquery.Selection) {
+		s := selection.Find("a").First()
+		url, boolUrl := s.Attr("href")
+		text := s.Find("h5").Text()
+		if len(text) != 0 {
+			if boolUrl {
+				allData = append(allData, map[string]interface{}{"title": string(text), "url": "https://www.huxiu.com" + url})
+			}
+		}
+	})
+	document.Find(".article-item__content").Each(func(i int, selection *goquery.Selection) {
+		s := selection.Find("a").First()
+		url, boolUrl := s.Attr("href")
+		text := s.Find("h5").Text()
+		if len(text) != 0 {
+			if boolUrl {
+				allData = append(allData, map[string]interface{}{"title": string(text), "url": "https://www.huxiu.com" + url})
+			}
+		}
+	})
 	return allData
 }
 
 func main() {
 	var spider Spider
-	spider.GetBaiDu()
+	spider.GetHuXiu()
 }
 
 /*

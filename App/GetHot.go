@@ -272,47 +272,6 @@ func (spider Spider) GetGitHub() []map[string]interface{} {
 	return allData
 }
 
-func (spider Spider) GetBaiDu() []map[string]interface{} {
-	url := "https://top.baidu.com/board?tab=realtime"
-	timeout := time.Duration(5 * time.Second) //超时时间5s
-	client := &http.Client{
-		Timeout: timeout,
-	}
-	var Body io.Reader
-	request, err := http.NewRequest("GET", url, Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	request.Header.Add("User-Agent", `Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Mobile Safari/537.36`)
-	request.Header.Add("Upgrade-Insecure-Requests", `1`)
-	request.Header.Add("Host", `top.baidu.com`)
-	res, err := client.Do(request)
-
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	defer res.Body.Close()
-	var allData []map[string]interface{}
-	document, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	document.Find("table tr").Each(func(i int, selection *goquery.Selection) {
-		s := selection.Find("a").First()
-		url, boolUrl := s.Attr("href")
-		text := s.Text()
-		MyText, _ := GbkToUtf8([]byte(text))
-		if boolUrl {
-			allData = append(allData, map[string]interface{}{"title": string(MyText), "url": url})
-		}
-	})
-	return allData
-
-}
-
 func (spider Spider) Get36Kr() []map[string]interface{} {
 	url := "https://36kr.com/"
 	timeout := time.Duration(5 * time.Second) //超时时间5s
@@ -364,52 +323,10 @@ func (spider Spider) Get36Kr() []map[string]interface{} {
 
 }
 
-func (spider Spider) GetQDaily() []map[string]interface{} {
-	url := "https://www.qdaily.com/tags/29.html"
-	timeout := time.Duration(5 * time.Second) //超时时间5s
-	client := &http.Client{
-		Timeout: timeout,
-	}
-	var Body io.Reader
-	request, err := http.NewRequest("GET", url, Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	request.Header.Add("User-Agent", `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36`)
-	request.Header.Add("Upgrade-Insecure-Requests", `1`)
-	request.Header.Add("Host", `www.qdaily.com`)
-	request.Header.Add("Referer", `https://www.qdaily.com/tags/30.html`)
-	res, err := client.Do(request)
-
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	defer res.Body.Close()
-	//str,_ := ioutil.ReadAll(res.Body)
-	//fmt.Println(string(str))
-	var allData []map[string]interface{}
-	document, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		fmt.Println("抓取" + spider.DataType + "失败")
-		return []map[string]interface{}{}
-	}
-	document.Find(".packery-item").Each(func(i int, selection *goquery.Selection) {
-		s := selection.Find("a").First()
-		url, boolUrl := s.Attr("href")
-		text := selection.Find(".grid-article-bd h3").Text()
-		if len(text) != 0 {
-			if boolUrl {
-				allData = append(allData, map[string]interface{}{"title": string(text), "url": "https://www.qdaily.com/" + url})
-			}
-		}
-	})
-	return allData
-}
-
+// GetGuoKr 果壳网
 func (spider Spider) GetGuoKr() []map[string]interface{} {
-	url := "https://www.guokr.com/scientific/"
+	// url := "https://www.guokr.com/scientific/"
+	url := "https://www.guokr.com/scientific/channel/hot/"
 	timeout := time.Duration(5 * time.Second) //超时时间5s
 	client := &http.Client{
 		Timeout: timeout,
@@ -1271,16 +1188,16 @@ func main() {
 		"TieBa",
 		"DouBan", // chromedp实现.
 		"HuPu",   // chromedp实现.
+		"BaiDu",  // chromedp实现.
+		"36Kr",
+		"GuoKr",
 
 		// 没法直接用goquery爬取，用chromedp方式显得太复杂.
 		// 检查到这.
 		// sql中执行delete from hotData2 where dataType='TianYa'
 		// "TianYa",
-
-		"BaiDu",
-		"36Kr",
-		"QDaily",
-		"GuoKr",
+		// sql中执行delete from hotData2 where dataType='QDaily'
+		// "QDaily",
 		"HuXiu",
 		"ZHDaily",
 		"Segmentfault",
